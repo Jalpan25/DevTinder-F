@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
 import { addFeed } from "../../utils/feedSlice";
-
-const BASE_URL = "http://localhost:3000";
+import { BASE_URL } from "../../utils/constants";
+// const BASE_URL = "http://localhost:3000";
 
 const Feed = () => {
   const feed = useSelector((store) => store.feed);
