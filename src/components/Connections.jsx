@@ -224,22 +224,11 @@ const Connections = () => {
 
                   {/* Action Buttons */}
                   <div className="card-actions justify-end">
-                    <button className="btn btn-sm btn-ghost hover:bg-purple-50 dark:hover:bg-purple-900/20">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                        />
-                      </svg>
-                      Message
+                    <button
+                      onClick={() => window.location.href = `/chat/${connection._id}`}
+                      className="btn btn-sm btn-ghost hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                    >
+                      💬 Message
                     </button>
                     <button className="btn btn-sm btn-primary bg-gradient-to-r from-purple-500 to-pink-500 border-none text-white">
                       View Profile

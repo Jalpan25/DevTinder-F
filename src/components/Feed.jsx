@@ -12,22 +12,66 @@ const Feed = () => {
   const [dragStart, setDragStart] = useState(0);
   const [dragOffset, setDragOffset] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [hasMoreProfiles, setHasMoreProfiles] = useState(true);
 
-  const getFeed = async () => {
+  const getFeed = async (pageNum = 1, isInitial = false) => {
     try {
-      if (feed) return;
-      const res = await axios.get(`${BASE_URL}/feed?page=1&limit=5`, {
+      if (isInitial && feed) return;
+      
+      setIsFetchingMore(true);
+      const res = await axios.get(`${BASE_URL}/feed?page=${pageNum}&limit=5`, {
         withCredentials: true,
       });
-      dispatch(addFeed(res?.data?.data));
+      
+      const newProfiles = res?.data?.data || [];
+      
+      // If we get fewer profiles than requested, there are no more
+      if (newProfiles.length < 5) {
+        setHasMoreProfiles(false);
+      }
+      
+      if (newProfiles.length === 0) {
+        setHasMoreProfiles(false);
+        setIsFetchingMore(false);
+        return;
+      }
+      
+      // Append new profiles to existing feed
+      if (feed && !isInitial) {
+        dispatch(addFeed([...feed, ...newProfiles]));
+      } else {
+        dispatch(addFeed(newProfiles));
+      }
+      
+      setIsFetchingMore(false);
     } catch (err) {
       console.error("Error fetching feed:", err);
+      setIsFetchingMore(false);
+      // If error occurs, assume no more profiles to avoid infinite retry
+      setHasMoreProfiles(false);
     }
   };
 
   useEffect(() => {
-    getFeed();
+    getFeed(1, true);
   }, []);
+
+  // Auto-fetch more profiles when nearing the end
+  useEffect(() => {
+    if (
+      feed &&
+      feed.length > 0 &&
+      currentIndex >= feed.length - 2 && // Fetch when 2 cards remaining
+      hasMoreProfiles &&
+      !isFetchingMore
+    ) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      getFeed(nextPage);
+    }
+  }, [currentIndex, feed, hasMoreProfiles, isFetchingMore, page]);
 
   const handleInterested = async (userId) => {
     setIsLoading(true);
@@ -64,9 +108,9 @@ const Feed = () => {
   };
 
   const moveToNextProfile = () => {
-    if (currentIndex < feed.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    }
+    // Always increment the index, even if we're at the last card
+    // The component will show loading state if more profiles are being fetched
+    setCurrentIndex(currentIndex + 1);
   };
 
   // Touch/Mouse drag handlers
@@ -104,20 +148,102 @@ const Feed = () => {
     );
   }
 
-  if (feed.length === 0 || currentIndex >= feed.length) {
+  // Show loading indicator when we've gone past current feed length and fetching more
+  if (currentIndex >= feed.length) {
+    if (isFetchingMore) {
+      return (
+        <div className="flex justify-center items-center h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
+            <div className="text-xl text-gray-600">Loading more profiles...</div>
+          </div>
+        </div>
+      );
+    }
+    
+    // Not fetching and no more profiles = end of feed
+    if (!hasMoreProfiles) {
+      return (
+        <div className="flex justify-center items-center h-screen">
+          <div className="text-center px-4">
+            <div className="mb-4">
+              <svg
+                className="w-20 h-20 mx-auto text-purple-300"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+                />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-700 mb-2">
+              You've explored the whole feed! 🎉
+            </h2>
+            <p className="text-gray-500 mb-4">
+              Check back later for new profiles
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-gradient-to-r from-pink-500 to-purple-500 text-white px-6 py-2 rounded-full hover:shadow-lg transition-all"
+            >
+              Refresh Feed
+            </button>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  // Initial empty feed
+  if (feed.length === 0) {
     return (
       <div className="flex justify-center items-center h-screen">
-        <div className="text-center">
+        <div className="text-center px-4">
+          <div className="mb-4">
+            <svg
+              className="w-20 h-20 mx-auto text-purple-300"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+              />
+            </svg>
+          </div>
           <h2 className="text-2xl font-bold text-gray-700 mb-2">
-            No more profiles
+            No profiles available
           </h2>
-          <p className="text-gray-500">Check back later for new connections!</p>
+          <p className="text-gray-500 mb-4">
+            Check back later for new connections!
+          </p>
         </div>
       </div>
     );
   }
 
   const currentUser = feed[currentIndex];
+  
+  // Safety check - shouldn't happen but just in case
+  if (!currentUser) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
+          <div className="text-xl text-gray-600">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+  
   const rotation = dragOffset / 20;
   const opacity = 1 - Math.abs(dragOffset) / 300;
 
@@ -127,6 +253,11 @@ const Feed = () => {
         <h1 className="text-2xl font-bold text-gray-800">Find Your Match</h1>
         <p className="text-gray-600 text-sm mt-1">
           {currentIndex + 1} / {feed.length}
+          {isFetchingMore && (
+            <span className="ml-2 text-xs text-purple-500">
+              (Loading more...)
+            </span>
+          )}
         </p>
       </div>
 
